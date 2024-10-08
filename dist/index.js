@@ -66,7 +66,6 @@ exports.FetchJSON = exports.FetchContent = exports.IsConnected = exports.Initial
 var domains_1 = __importDefault(require("./domains"));
 var Utilities = __importStar(require("./utilities"));
 var instance = undefined;
-var notFoundMaxRetries = 20;
 // True when verbosity is enabled to check errors
 var verbose = false;
 var Initialize = function (options) { return __awaiter(void 0, void 0, void 0, function () {
@@ -75,7 +74,6 @@ var Initialize = function (options) { return __awaiter(void 0, void 0, void 0, f
         // Or in cases where is initialized and connected but forced to reinitialize
         if (instance == undefined || ((instance === null || instance === void 0 ? void 0 : instance.ipfsConnected) && (options === null || options === void 0 ? void 0 : options.forceInitialize))) {
             instance = new IPFSFetcher(options);
-            notFoundMaxRetries = (options === null || options === void 0 ? void 0 : options.notFoundMaxRetries) || 5;
             verbose = (options === null || options === void 0 ? void 0 : options.verbose) || false;
         }
         return [2 /*return*/];
@@ -193,10 +191,12 @@ var PathResolver = /** @class */ (function () {
     return PathResolver;
 }());
 var PersistentFetcher = /** @class */ (function () {
-    function PersistentFetcher(digested, originalPath) {
+    function PersistentFetcher(digested, originalPath, notFoundMaxRetriesOverride) {
+        if (notFoundMaxRetriesOverride === void 0) { notFoundMaxRetriesOverride = 5; }
         this.digested = digested;
         this.originalPath = originalPath;
         this.resolvers = [];
+        this.notFoundMaxRetries = notFoundMaxRetriesOverride;
     }
     // Try persistently to fetch 
     PersistentFetcher.prototype.fetch = function () {
@@ -259,7 +259,7 @@ var PersistentFetcher = /** @class */ (function () {
                         this_1 = this;
                         _a.label = 1;
                     case 1:
-                        if (!(!this.found && this.tries < notFoundMaxRetries)) return [3 /*break*/, 3];
+                        if (!(!this.found && this.tries < this.notFoundMaxRetries)) return [3 /*break*/, 3];
                         return [5 /*yield**/, _loop_1()];
                     case 2:
                         _a.sent();
@@ -279,47 +279,53 @@ var PersistentFetcher = /** @class */ (function () {
     return PersistentFetcher;
 }());
 // Fetch fastest IPFS gateway url for the desired content 
-var FetchContent = function (path) { return __awaiter(void 0, void 0, void 0, function () {
-    var digested, fetcher;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0:
-                digested = Utilities.digestPath(path);
-                if (!digested.isIPFS) {
-                    throw new Error('Invalid IPFS path');
-                }
-                // Wait connection to be completed before try to fetch 
-                return [4 /*yield*/, new Promise(function (resolve) { waitLoop(resolve); })];
-            case 1:
-                // Wait connection to be completed before try to fetch 
-                _a.sent();
-                fetcher = new PersistentFetcher(digested.cid + digested.subpath, path);
-                return [2 /*return*/, fetcher.fetch()];
-        }
+var FetchContent = function (path, notFoundMaxRetries) {
+    if (notFoundMaxRetries === void 0) { notFoundMaxRetries = 3; }
+    return __awaiter(void 0, void 0, void 0, function () {
+        var digested, fetcher;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    digested = Utilities.digestPath(path);
+                    if (!digested.isIPFS) {
+                        throw new Error('Invalid IPFS path');
+                    }
+                    // Wait connection to be completed before try to fetch 
+                    return [4 /*yield*/, new Promise(function (resolve) { waitLoop(resolve); })];
+                case 1:
+                    // Wait connection to be completed before try to fetch 
+                    _a.sent();
+                    fetcher = new PersistentFetcher(digested.cid + digested.subpath, path, notFoundMaxRetries);
+                    return [2 /*return*/, fetcher.fetch()];
+            }
+        });
     });
-}); };
+};
 exports.FetchContent = FetchContent;
 // Fetch a JSON formatted doc from fastest IPFS gateways connected
-var FetchJSON = function (path) { return __awaiter(void 0, void 0, void 0, function () {
-    var newPath;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0: return [4 /*yield*/, (0, exports.FetchContent)(path)];
-            case 1:
-                newPath = _a.sent();
-                return [2 /*return*/, new Promise(function (resolve, reject) {
-                        fetch(newPath)
-                            .then(function (r) { return r.json(); })
-                            .then(function (doc) { return resolve(doc); })["catch"](function (err) {
-                            if (err instanceof Error && err.message.toLowerCase().includes('unexpected')) {
-                                reject('Failed to parse JSON. The content fetched is not a valid JSON document.');
-                            }
-                            else {
-                                reject('Failed to fetch JSON content.');
-                            }
-                        });
-                    })];
-        }
+var FetchJSON = function (path, notFoundMaxRetries) {
+    if (notFoundMaxRetries === void 0) { notFoundMaxRetries = 3; }
+    return __awaiter(void 0, void 0, void 0, function () {
+        var newPath;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, (0, exports.FetchContent)(path, notFoundMaxRetries)];
+                case 1:
+                    newPath = _a.sent();
+                    return [2 /*return*/, new Promise(function (resolve, reject) {
+                            fetch(newPath)
+                                .then(function (r) { return r.json(); })
+                                .then(function (doc) { return resolve(doc); })["catch"](function (err) {
+                                if (err instanceof Error && err.message.toLowerCase().includes('unexpected')) {
+                                    reject('Failed to parse JSON. The content fetched is not a valid JSON document.');
+                                }
+                                else {
+                                    reject('Failed to fetch JSON content.');
+                                }
+                            });
+                        })];
+            }
+        });
     });
-}); };
+};
 exports.FetchJSON = FetchJSON;

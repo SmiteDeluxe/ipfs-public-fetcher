@@ -6,7 +6,6 @@ import {
 } from './types'
 
 let instance: IPFSFetcher | undefined = undefined;
-let notFoundMaxRetries = 20;
 // True when verbosity is enabled to check errors
 let verbose = false
 
@@ -15,7 +14,6 @@ export const Initialize = async (options?: IPFSFetcherOptions) => {
     // Or in cases where is initialized and connected but forced to reinitialize
     if (instance == undefined || (instance?.ipfsConnected && options?.forceInitialize)) {
         instance = new IPFSFetcher(options);
-        notFoundMaxRetries = options?.notFoundMaxRetries || 5;
         verbose = options?.verbose || false;
     }
 }
@@ -144,18 +142,21 @@ class PersistentFetcher {
     tries: number
     // Item found!
     found: null | string
+    // Max retries before give up
+    notFoundMaxRetries: number
 
-    constructor(digested: string, originalPath: string) {
+    constructor(digested: string, originalPath: string, notFoundMaxRetriesOverride: number = 5) {
         this.digested = digested;
         this.originalPath = originalPath;
-        this.resolvers = []
+        this.resolvers = [];
+        this.notFoundMaxRetries = notFoundMaxRetriesOverride;
     }
 
     // Try persistently to fetch 
     async fetch() {
         this.tries = 0;
         this.found = undefined;
-        while (!this.found && this.tries < notFoundMaxRetries) {
+        while (!this.found && this.tries < this.notFoundMaxRetries) {
             if(verbose) console.log('Trying to fetch content, on try', this.tries);
             // Se a timeout reference for clear it at the end
             let timeout
@@ -203,22 +204,22 @@ class PersistentFetcher {
 
 
 // Fetch fastest IPFS gateway url for the desired content 
-export const FetchContent = async (path: string) => {
+export const FetchContent = async (path: string, notFoundMaxRetries = 3) => {
     let digested = Utilities.digestPath(path)
     if (!digested.isIPFS) {
         throw new Error('Invalid IPFS path');
     }
 
     // Wait connection to be completed before try to fetch 
-    await new Promise(resolve => { waitLoop(resolve) })
+    await new Promise(resolve => { waitLoop(resolve) });
 
-    const fetcher = new PersistentFetcher(digested.cid + digested.subpath, path)
+    const fetcher = new PersistentFetcher(digested.cid + digested.subpath, path, notFoundMaxRetries)
     return fetcher.fetch()
 }
 
 // Fetch a JSON formatted doc from fastest IPFS gateways connected
-export const FetchJSON = async (path) => {
-    const newPath = await FetchContent(path)
+export const FetchJSON = async (path, notFoundMaxRetries = 3) => {
+    const newPath = await FetchContent(path, notFoundMaxRetries);
     return new Promise((resolve, reject) => {
         fetch(newPath)
             .then((r) => r.json())
