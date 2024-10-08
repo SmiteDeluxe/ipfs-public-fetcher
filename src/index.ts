@@ -192,8 +192,8 @@ class PersistentFetcher {
         }
         // In case of successful found a resource, return it.
         if (this.found) return this.found
-        // In case of a non successful fetch after 20 tries, return original path
-        return this.originalPath
+        // In case of a non successful fetch after 20 tries, return descriptive error
+        throw new Error('Failed to fetch content. Possibly not pinned in which case the retrieval process should have been initiated.');
     }
 }
 
@@ -202,12 +202,12 @@ class PersistentFetcher {
 export const FetchContent = async (path: string) => {
     let digested = Utilities.digestPath(path)
     if (!digested.isIPFS) {
-        // In case of fail to digest use same path to fetch
-        console.log('Not an IPFS valid path:', path)
-        return path
+        throw new Error('Invalid IPFS path');
     }
+
     // Wait connection to be completed before try to fetch 
     await new Promise(resolve => { waitLoop(resolve) })
+
     const fetcher = new PersistentFetcher(digested.cid + digested.subpath, path)
     return fetcher.fetch()
 }
