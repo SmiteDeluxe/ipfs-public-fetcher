@@ -4,7 +4,7 @@ import { Initialize, FetchJSON } from "./src";
 async function testFetchJSON() {
     await Initialize({ verbose: false });
     await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 1 second
-    const ipfsHash = "ipfs://bafybeiebkgkoedvlutl32sjrbibf6t73obbl2qx6e5nslijstqdxlbnnfa/1"; // Example IPFS hash
+    const ipfsHash = "bafkreiaavzn6zvw75yppumcwjkt2jhm7dh4m7ll4eziqnlgz76evxmwlb4"; // Example IPFS hash
 
     try {
         const result = await FetchJSON(ipfsHash);

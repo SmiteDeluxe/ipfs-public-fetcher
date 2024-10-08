@@ -1,5 +1,5 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
+exports.__esModule = true;
 exports.digestPath = void 0;
 var is_ipfs_1 = require("is-ipfs");
 // REFERENCES:

@@ -61,7 +61,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-Object.defineProperty(exports, "__esModule", { value: true });
+exports.__esModule = true;
 exports.FetchJSON = exports.FetchContent = exports.IsConnected = exports.Initialize = void 0;
 var domains_1 = __importDefault(require("./domains"));
 var Utilities = __importStar(require("./utilities"));
@@ -105,7 +105,7 @@ var IPFSFetcher = /** @class */ (function () {
             this.verbose = true;
         if (this.verbose)
             console.log('-- IPFS Starting connection process --');
-        var domains = (options === null || options === void 0 ? void 0 : options.customDomains) ? options.customDomains : domains_1.default;
+        var domains = (options === null || options === void 0 ? void 0 : options.customDomains) ? options.customDomains : domains_1["default"];
         domains.forEach(function (gatewayPath) {
             var dateBefore = Date.now();
             // Test each gateway against a 5sec timeout
@@ -141,8 +141,7 @@ var IPFSFetcher = /** @class */ (function () {
                         console.log('-- IPFS Connected to enough gateways --');
                     _this.ipfsConnected = true;
                 }
-            })
-                .catch(function (err) {
+            })["catch"](function (err) {
                 clearTimeout(timeout);
                 if (_this.verbose)
                     console.log('Failed to fetch gateway or Path based Gateway', gatewayPath);
@@ -172,8 +171,7 @@ var PathResolver = /** @class */ (function () {
                                 return;
                             }
                             throw new Error('Error fetching content');
-                        })
-                            .catch(function (err) {
+                        })["catch"](function (err) {
                             if (err.name === 'AbortError') {
                                 // console.log('Aborted request', this.gatewayPath)
                             }
@@ -237,7 +235,7 @@ var PersistentFetcher = /** @class */ (function () {
                                             // In case of a successful returned result, set found variable
                                             if (res)
                                                 _this.found = res;
-                                        }).catch(function () {
+                                        })["catch"](function () {
                                             clearTimeout(timeout);
                                         })];
                                     case 1:
@@ -308,7 +306,14 @@ var FetchJSON = function (path) { return __awaiter(void 0, void 0, void 0, funct
                 return [2 /*return*/, new Promise(function (resolve) {
                         fetch(newPath)
                             .then(function (r) { return r.json(); })
-                            .then(function (doc) { return resolve(doc); });
+                            .then(function (doc) { return resolve(doc); })["catch"](function (err) {
+                            if (err instanceof Error && err.message.toLowerCase().includes('unexpected')) {
+                                throw new Error('Failed to parse JSON. The content fetched is not a valid JSON document.');
+                            }
+                            else {
+                                throw new Error('Failed to fetch JSON content.');
+                            }
+                        });
                     })];
         }
     });

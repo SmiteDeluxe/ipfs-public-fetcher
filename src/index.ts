@@ -219,5 +219,12 @@ export const FetchJSON = async (path) => {
         fetch(newPath)
             .then((r) => r.json())
             .then(doc => resolve(doc))
+            .catch((err) => {
+                if(err instanceof Error && err.message.toLowerCase().includes('unexpected')) {
+                    throw new Error('Failed to parse JSON. The content fetched is not a valid JSON document.')
+                } else {
+                    throw new Error('Failed to fetch JSON content.');
+                }
+            });
     })
 }

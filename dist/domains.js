@@ -1,6 +1,6 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.default = [
+exports.__esModule = true;
+exports["default"] = [
     "https://ipfs.io/ipfs/:hash",
     "https://cf-ipfs.com/ipfs/:hash",
     "https://dweb.link/ipfs/:hash",
