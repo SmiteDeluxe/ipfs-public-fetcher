@@ -6,12 +6,18 @@ import {
 } from './types'
 
 let instance: IPFSFetcher | undefined = undefined;
+let notFoundMaxRetries = 20;
+// True when verbosity is enabled to check errors
+let verbose = false
 
 export const Initialize = async (options?: IPFSFetcherOptions) => {
     // Only initialize in cases where isn't initialized yet
     // Or in cases where is initialized and connected but forced to reinitialize
-    if (instance == undefined || (instance?.ipfsConnected && options?.forceInitialize))
+    if (instance == undefined || (instance?.ipfsConnected && options?.forceInitialize)) {
         instance = new IPFSFetcher(options);
+        notFoundMaxRetries = options?.notFoundMaxRetries || 5;
+        verbose = options?.verbose || false;
+    }
 }
 
 export const IsConnected = () => {
@@ -37,13 +43,10 @@ class IPFSFetcher {
     gatewaysFetched: IPFSGateway[]
     // True when sucessfully connected with at least two gateways
     ipfsConnected = false
-    // True when verbosity is enabled to check errors
-    verbose = false
 
     constructor(options?: IPFSFetcherOptions) {
         this.gatewaysFetched = []
-        if (options?.verbose) this.verbose = true;
-        if (this.verbose) console.log('-- IPFS Starting connection process --');
+        if (verbose) console.log('-- IPFS Starting connection process --');
         const domains = options?.customDomains ? options.customDomains : sourceDomains
         domains.forEach(gatewayPath => {
             const dateBefore = Date.now()
@@ -71,16 +74,16 @@ class IPFSFetcher {
                     // Concat the new fetched gateway and make a fester response sort
                     this.gatewaysFetched = this.gatewaysFetched.concat({ path: gatewayPath, errors: 0, response: Date.now() - dateBefore })
                         .sort((a, b) => a.response - b.response)
-                    if (this.verbose) console.log('Gateway connected: ', this.gatewaysFetched.length, '-', gatewayPath,)
+                    if (verbose) console.log('Gateway connected: ', this.gatewaysFetched.length, '-', gatewayPath,)
                     // If more than 3 gateways have succeded, then consider IPFS connected and ready
                     if (this.gatewaysFetched.length > (options.minimumGateways || 0) && !this.ipfsConnected) {
-                        if (this.verbose) console.log('-- IPFS Connected to enough gateways --')
+                        if (verbose) console.log('-- IPFS Connected to enough gateways --')
                         this.ipfsConnected = true
                     }
                 })
                 .catch((err) => {
                     clearTimeout(timeout)
-                    if (this.verbose) console.log('Failed to fetch gateway or Path based Gateway', gatewayPath)
+                    if (verbose) console.log('Failed to fetch gateway or Path based Gateway', gatewayPath)
                 })
         })
     }
@@ -152,7 +155,8 @@ class PersistentFetcher {
     async fetch() {
         this.tries = 0;
         this.found = undefined;
-        while (!this.found && this.tries < 3) {
+        while (!this.found && this.tries < notFoundMaxRetries) {
+            if(verbose) console.log('Trying to fetch content, on try', this.tries);
             // Se a timeout reference for clear it at the end
             let timeout
             // Racing the promises for tries
@@ -192,7 +196,7 @@ class PersistentFetcher {
         }
         // In case of successful found a resource, return it.
         if (this.found) return this.found
-        // In case of a non successful fetch after 20 tries, return descriptive error
+        // In case of a non successful fetch after notFoundMaxRetries tries, return descriptive error
         throw new Error('Failed to fetch content. Possibly not pinned in which case the retrieval process should have been initiated.');
     }
 }

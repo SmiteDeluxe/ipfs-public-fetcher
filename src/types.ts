@@ -4,6 +4,7 @@ export type IPFSFetcherOptions = {
     verbose?: boolean        // Log consoles 
     forceInitialize?: boolean  // Force initialize even on hot reloads
     minimumGateways?: number    // Minimum gateways to be connected before consider IPFS as connected
+    notFoundMaxRetries?: number      // Number of retries to fetch content if not found
 }
 
 export type IPFSGateway = {

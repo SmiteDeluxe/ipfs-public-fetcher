@@ -3,6 +3,7 @@ export type IPFSFetcherOptions = {
     verbose?: boolean;
     forceInitialize?: boolean;
     minimumGateways?: number;
+    notFoundMaxRetries?: number;
 };
 export type IPFSGateway = {
     path: string;
