@@ -303,15 +303,15 @@ var FetchJSON = function (path) { return __awaiter(void 0, void 0, void 0, funct
             case 0: return [4 /*yield*/, (0, exports.FetchContent)(path)];
             case 1:
                 newPath = _a.sent();
-                return [2 /*return*/, new Promise(function (resolve) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
                         fetch(newPath)
                             .then(function (r) { return r.json(); })
                             .then(function (doc) { return resolve(doc); })["catch"](function (err) {
                             if (err instanceof Error && err.message.toLowerCase().includes('unexpected')) {
-                                throw new Error('Failed to parse JSON. The content fetched is not a valid JSON document.');
+                                reject('Failed to parse JSON. The content fetched is not a valid JSON document.');
                             }
                             else {
-                                throw new Error('Failed to fetch JSON content.');
+                                reject('Failed to fetch JSON content.');
                             }
                         });
                     })];

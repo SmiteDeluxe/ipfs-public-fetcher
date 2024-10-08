@@ -215,15 +215,15 @@ export const FetchContent = async (path: string) => {
 // Fetch a JSON formatted doc from fastest IPFS gateways connected
 export const FetchJSON = async (path) => {
     const newPath = await FetchContent(path)
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         fetch(newPath)
             .then((r) => r.json())
             .then(doc => resolve(doc))
             .catch((err) => {
                 if(err instanceof Error && err.message.toLowerCase().includes('unexpected')) {
-                    throw new Error('Failed to parse JSON. The content fetched is not a valid JSON document.')
+                    reject('Failed to parse JSON. The content fetched is not a valid JSON document.');
                 } else {
-                    throw new Error('Failed to fetch JSON content.');
+                    reject('Failed to fetch JSON content.');
                 }
             });
     })
