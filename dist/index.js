@@ -61,7 +61,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.FetchJSON = exports.FetchContent = exports.IsConnected = exports.Initialize = void 0;
 var domains_1 = __importDefault(require("./domains"));
 var Utilities = __importStar(require("./utilities"));
@@ -105,7 +105,7 @@ var IPFSFetcher = /** @class */ (function () {
             this.verbose = true;
         if (this.verbose)
             console.log('-- IPFS Starting connection process --');
-        var domains = (options === null || options === void 0 ? void 0 : options.customDomains) ? options.customDomains : domains_1["default"];
+        var domains = (options === null || options === void 0 ? void 0 : options.customDomains) ? options.customDomains : domains_1.default;
         domains.forEach(function (gatewayPath) {
             var dateBefore = Date.now();
             // Test each gateway against a 5sec timeout
@@ -141,7 +141,8 @@ var IPFSFetcher = /** @class */ (function () {
                         console.log('-- IPFS Connected to enough gateways --');
                     _this.ipfsConnected = true;
                 }
-            })["catch"](function (err) {
+            })
+                .catch(function (err) {
                 clearTimeout(timeout);
                 if (_this.verbose)
                     console.log('Failed to fetch gateway or Path based Gateway', gatewayPath);
@@ -171,7 +172,8 @@ var PathResolver = /** @class */ (function () {
                                 return;
                             }
                             throw new Error('Error fetching content');
-                        })["catch"](function (err) {
+                        })
+                            .catch(function (err) {
                             if (err.name === 'AbortError') {
                                 // console.log('Aborted request', this.gatewayPath)
                             }
@@ -235,7 +237,7 @@ var PersistentFetcher = /** @class */ (function () {
                                             // In case of a successful returned result, set found variable
                                             if (res)
                                                 _this.found = res;
-                                        })["catch"](function () {
+                                        }).catch(function () {
                                             clearTimeout(timeout);
                                         })];
                                     case 1:
@@ -264,10 +266,10 @@ var PersistentFetcher = /** @class */ (function () {
                         // In case of successful found a resource, return it.
                         if (this.found)
                             return [2 /*return*/, this.found
-                                // In case of a non successful fetch after 20 tries, return original path
+                                // In case of a non successful fetch after 20 tries, return descriptive error
                             ];
-                        // In case of a non successful fetch after 20 tries, return original path
-                        return [2 /*return*/, this.originalPath];
+                        // In case of a non successful fetch after 20 tries, return descriptive error
+                        throw new Error('Failed to fetch content. Possibly not pinned in which case the retrieval process should have been initiated.');
                 }
             });
         });
@@ -282,9 +284,7 @@ var FetchContent = function (path) { return __awaiter(void 0, void 0, void 0, fu
             case 0:
                 digested = Utilities.digestPath(path);
                 if (!digested.isIPFS) {
-                    // In case of fail to digest use same path to fetch
-                    console.log('Not an IPFS valid path:', path);
-                    return [2 /*return*/, path];
+                    throw new Error('Invalid IPFS path');
                 }
                 // Wait connection to be completed before try to fetch 
                 return [4 /*yield*/, new Promise(function (resolve) { waitLoop(resolve); })];
