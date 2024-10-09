@@ -3,9 +3,10 @@ export type IPFSFetcherOptions = {
     verbose?: boolean;
     forceInitialize?: boolean;
     minimumGateways?: number;
+    gatewayTimeout?: number;
+    reinitializeTime?: number;
 };
 export type IPFSGateway = {
     path: string;
-    errors: number;
     response: number;
 };
