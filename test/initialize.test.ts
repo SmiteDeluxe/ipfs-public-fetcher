@@ -3,6 +3,8 @@
 import { server1, server2 } from "./mockServers"
 import { Initialize, IsConnected, FetchContent } from "../src"
 
+jest.setTimeout(7000)
+
 describe('Testing Initialize using two mock domains', () => {
   let app1, app2;
 
@@ -44,23 +46,25 @@ describe('Testing Initialize using two mock domains', () => {
         customDomains: [
           `${app1}:hash`,
           `${app2}:hash`
-        ]
+        ],
+        verbose: true,
       })
     await new Promise((resolve) => setTimeout(resolve, 10))
     expect(IsConnected()).toBe(true);
   });
 
   test('Will check response delay.', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 1000)) // Wait 1 second for moch servers to finish up from previous test
     const before = performance.now()
     const content = await FetchContent('bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m/delay500.png')
     expect(performance.now() - before).toBeGreaterThan(500)
     expect(content).toBe(`${app2}bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m/delay500.png`)
   });
 
-  test('Will check response delay.', async () => {
-    jest.setTimeout(10000)
-    const before = performance.now()
-    const content = await FetchContent('bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m/delay10000.png')
-    expect(content).toBe(`bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m/delay10000.png`)
-  });
+  test('Will search for content not returning in time.', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 1000)) // Wait 1 second for moch servers to finish up from previous test
+    await expect(
+      FetchContent('bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m/delay10000.png', 1)
+    ).rejects.toThrow(/Failed/);
+  });  
 });
