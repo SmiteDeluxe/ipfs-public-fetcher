@@ -114,56 +114,70 @@ var waitLoop = function (callback) {
 };
 var IPFSFetcher = /** @class */ (function () {
     function IPFSFetcher(options) {
-        var _this = this;
         // True when sucessfully connected with at least two gateways
         this.ipfsConnected = false;
         this.initializedTime = new Date();
         this.gatewaysFetched = [];
         if (verbose)
             console.log('-- IPFS Starting connection process --');
-        var domains = (options === null || options === void 0 ? void 0 : options.customDomains) ? options.customDomains : domains_1["default"];
-        domains.forEach(function (gatewayPath) {
-            var dateBefore = Date.now();
-            // Test each gateway against a 5sec timeout
-            var timeout;
-            Promise.any([
-                fetch(gatewayPath.replace(':hash', 'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m'), { mode: 'cors', method: 'HEAD' }),
-                new Promise(function (resolve, reject) { timeout = setTimeout(reject, 5000); })
-            ]).then(function (response) {
-                if (
-                // Fetch returned successfully
-                response.ok
-                // In case of customDomains IPFSSubdomain security verification is disabled
-                // TODO This line was commented due to apparently there are not so much public domains that uses subdomains
-                // customDomains ? true : isIPFS.ipfsSubdomain(response.url)
-                ) {
-                    clearTimeout(timeout);
-                    return;
+        this.initialize(options);
+    }
+    IPFSFetcher.prototype.initialize = function (options) {
+        return __awaiter(this, void 0, void 0, function () {
+            var domains, _a;
+            var _this = this;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        if (!(options === null || options === void 0 ? void 0 : options.customDomains)) return [3 /*break*/, 1];
+                        _a = options.customDomains;
+                        return [3 /*break*/, 3];
+                    case 1: return [4 /*yield*/, (0, domains_1["default"])()];
+                    case 2:
+                        _a = _b.sent();
+                        _b.label = 3;
+                    case 3:
+                        domains = _a;
+                        domains.forEach(function (gatewayPath) {
+                            var dateBefore = Date.now();
+                            // Test each gateway against a 5sec timeout
+                            var timeout;
+                            Promise.any([
+                                fetch(gatewayPath + '/ipfs/' + 'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m', { mode: 'cors', method: 'HEAD' }),
+                                new Promise(function (_, reject) { timeout = setTimeout(reject, 5000); })
+                            ]).then(function (response) {
+                                if (response.ok) {
+                                    clearTimeout(timeout);
+                                    return;
+                                }
+                                else {
+                                    clearTimeout(timeout);
+                                    throw Error(response.statusText);
+                                }
+                            })
+                                .then(function () {
+                                // Concat the new fetched gateway and make a faster response sort
+                                _this.gatewaysFetched = _this.gatewaysFetched.concat({ path: gatewayPath, response: Date.now() - dateBefore })
+                                    .sort(function (a, b) { return a.response - b.response; });
+                                if (verbose)
+                                    console.log('Gateway connected: ', _this.gatewaysFetched.length, '-', gatewayPath);
+                                // If more than minimum gateways have succeded, then consider IPFS connected and ready
+                                if (_this.gatewaysFetched.length > (options.minimumGateways || 0) && !_this.ipfsConnected) {
+                                    if (verbose)
+                                        console.log('-- IPFS Connected to enough gateways --');
+                                    _this.ipfsConnected = true;
+                                }
+                            })["catch"](function (err) {
+                                clearTimeout(timeout);
+                                if (verbose)
+                                    console.log('Failed to fetch gateway or Path based Gateway', gatewayPath);
+                            });
+                        });
+                        return [2 /*return*/];
                 }
-                else {
-                    clearTimeout(timeout);
-                    throw Error(response.statusText);
-                }
-            })
-                .then(function () {
-                // Concat the new fetched gateway and make a fester response sort
-                _this.gatewaysFetched = _this.gatewaysFetched.concat({ path: gatewayPath, response: Date.now() - dateBefore })
-                    .sort(function (a, b) { return a.response - b.response; });
-                if (verbose)
-                    console.log('Gateway connected: ', _this.gatewaysFetched.length, '-', gatewayPath);
-                // If more than 3 gateways have succeded, then consider IPFS connected and ready
-                if (_this.gatewaysFetched.length > (options.minimumGateways || 0) && !_this.ipfsConnected) {
-                    if (verbose)
-                        console.log('-- IPFS Connected to enough gateways --');
-                    _this.ipfsConnected = true;
-                }
-            })["catch"](function (err) {
-                clearTimeout(timeout);
-                if (verbose)
-                    console.log('Failed to fetch gateway or Path based Gateway', gatewayPath);
             });
         });
-    }
+    };
     return IPFSFetcher;
 }());
 // Try to fetch a content to via gateway path
@@ -171,7 +185,7 @@ var PathResolver = /** @class */ (function () {
     function PathResolver(digested, gateway) {
         this.controller = new AbortController();
         this.signal = this.controller.signal;
-        this.gatewayPath = gateway ? gateway.path.replace(':hash', digested) : digested;
+        this.gatewayPath = gateway ? gateway.path + '/ipfs/' + digested : digested;
     }
     PathResolver.prototype.fetch = function () {
         return __awaiter(this, void 0, void 0, function () {

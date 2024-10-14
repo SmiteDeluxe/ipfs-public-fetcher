@@ -1,4 +1,4 @@
-import sourceDomains from './domains'
+import fetchGateways from './domains'
 import * as Utilities from './utilities'
 import {
     IPFSFetcherOptions,
@@ -52,24 +52,23 @@ class IPFSFetcher {
 
     constructor(options?: IPFSFetcherOptions) {
         this.initializedTime = new Date();
-        this.gatewaysFetched = []
+        this.gatewaysFetched = [];
         if (verbose) console.log('-- IPFS Starting connection process --');
-        const domains = options?.customDomains ? options.customDomains : sourceDomains
+        this.initialize(options);
+    }
+
+    private async initialize(options?: IPFSFetcherOptions) {
+        const domains = options?.customDomains ? options.customDomains : await fetchGateways();
+
         domains.forEach(gatewayPath => {
             const dateBefore = Date.now()
             // Test each gateway against a 5sec timeout
             let timeout;
             Promise.any([
-                fetch(gatewayPath.replace(':hash', 'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m'), { mode: 'cors', method: 'HEAD' }),
-                new Promise((resolve, reject) => { timeout = setTimeout(reject, 5000) })
+                fetch(gatewayPath + '/ipfs/' + 'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m', { mode: 'cors', method: 'HEAD' }),
+                new Promise((_, reject) => { timeout = setTimeout(reject, 5000) })
             ]).then((response: Response) => {
-                if (
-                    // Fetch returned successfully
-                    response.ok
-                    // In case of customDomains IPFSSubdomain security verification is disabled
-                    // TODO This line was commented due to apparently there are not so much public domains that uses subdomains
-                    // customDomains ? true : isIPFS.ipfsSubdomain(response.url)
-                ) {
+                if (response.ok) {
                     clearTimeout(timeout)
                     return;
                 } else {
@@ -78,11 +77,11 @@ class IPFSFetcher {
                 }
             })
                 .then(() => {
-                    // Concat the new fetched gateway and make a fester response sort
+                    // Concat the new fetched gateway and make a faster response sort
                     this.gatewaysFetched = this.gatewaysFetched.concat({ path: gatewayPath, response: Date.now() - dateBefore })
                         .sort((a, b) => a.response - b.response)
                     if (verbose) console.log('Gateway connected: ', this.gatewaysFetched.length, '-', gatewayPath,)
-                    // If more than 3 gateways have succeded, then consider IPFS connected and ready
+                    // If more than minimum gateways have succeded, then consider IPFS connected and ready
                     if (this.gatewaysFetched.length > (options.minimumGateways || 0) && !this.ipfsConnected) {
                         if (verbose) console.log('-- IPFS Connected to enough gateways --')
                         this.ipfsConnected = true
@@ -106,8 +105,8 @@ class PathResolver {
 
     constructor(digested: string, gateway?: IPFSGateway) {
         this.controller = new AbortController();
-        this.signal = this.controller.signal
-        this.gatewayPath = gateway ? gateway.path.replace(':hash', digested) : digested
+        this.signal = this.controller.signal;
+        this.gatewayPath = gateway ? gateway.path + '/ipfs/' + digested : digested;
     }
 
     async fetch() {
