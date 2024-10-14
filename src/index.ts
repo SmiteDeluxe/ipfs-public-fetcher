@@ -103,14 +103,15 @@ class PathResolver {
     gateway: IPFSGateway;
     gatewayPath: string;
 
-    constructor(digested: string, gateway?: IPFSGateway) {
+    constructor(digested: string, gateway: IPFSGateway) {
         this.controller = new AbortController();
         this.signal = this.controller.signal;
-        this.gatewayPath = gateway ? gateway.path + '/ipfs/' + digested : digested;
+        this.gatewayPath = gateway.path + '/ipfs/' + digested;
     }
 
     async fetch() {
         return new Promise<string>((resolve, reject) => {
+            if(verbose) console.log('Fetching content from', this.gatewayPath)
             // Fetch digested path from best gateways
             fetch(this.gatewayPath, { method: 'HEAD', signal: this.signal })
                 .then((r) => {
@@ -119,6 +120,7 @@ class PathResolver {
                         resolve(this.gatewayPath)
                         return
                     }
+                    if (verbose) console.log('Error fetching content from', this.gatewayPath, r.statusText)
                     throw new Error('Error fetching content')
                 })
                 .catch((err: any) => {
@@ -166,7 +168,7 @@ class PersistentFetcher {
         this.found = undefined;
 
         while (!this.found && this.tries < this.maxFetchTries) {
-            if (verbose) console.log('Trying to fetch content, on try', this.tries);
+            if (verbose) console.log(`Trying to fetch content, on try`, this.tries);
     
             // Start all fetch promises immediately
             const fetchPromises = instance.gatewaysFetched.slice(0, 4).map((gateway) => {
@@ -189,6 +191,7 @@ class PersistentFetcher {
     
             // Process results
             if (results) {
+                if (verbose) console.log('Found content at', results);
                 this.found = results; // This will be the fastest response
             } else {
                 this.tries++; // Increment if no successful fetches
