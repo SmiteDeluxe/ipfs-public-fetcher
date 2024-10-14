@@ -1,4 +1,15 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -83,6 +94,8 @@ var gatewayTimeout = 5000;
 var reinitializeTime = 1000 * 60 * 60;
 // Minimum gateways to be connected before consider IPFS as connected as well as slice size of fastest gateways used
 var gatewayCheckAmount = 3;
+// Store initially passed options for reinitialization
+var initialOptions = undefined;
 var Initialize = function (options) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         // Only initialize in cases where isn't initialized yet
@@ -93,6 +106,7 @@ var Initialize = function (options) { return __awaiter(void 0, void 0, void 0, f
             gatewayTimeout = (options === null || options === void 0 ? void 0 : options.gatewayTimeout) || 5000;
             gatewayCheckAmount = (options === null || options === void 0 ? void 0 : options.gatewayCheckAmount) || 3;
             reinitializeTime = (options === null || options === void 0 ? void 0 : options.reinitializeTime) || 1000 * 60 * 60;
+            initialOptions = options;
         }
         return [2 /*return*/];
     });
@@ -298,7 +312,7 @@ var PersistentFetcher = /** @class */ (function () {
                         if (!(instance && (new Date().getTime() - instance.initializedTime.getTime()) > reinitializeTime)) return [3 /*break*/, 5];
                         if (verbose)
                             console.log('Instance too old, reinitializing');
-                        return [4 /*yield*/, (0, exports.Initialize)({ forceInitialize: true, verbose: verbose })];
+                        return [4 /*yield*/, (0, exports.Initialize)(__assign({ forceInitialize: true }, initialOptions))];
                     case 4:
                         _a.sent();
                         _a.label = 5;

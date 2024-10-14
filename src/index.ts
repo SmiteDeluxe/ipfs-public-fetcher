@@ -14,6 +14,8 @@ let gatewayTimeout = 5000
 let reinitializeTime = 1000 * 60 * 60
 // Minimum gateways to be connected before consider IPFS as connected as well as slice size of fastest gateways used
 let gatewayCheckAmount = 3
+// Store initially passed options for reinitialization
+let initialOptions: IPFSFetcherOptions | undefined = undefined
 
 export const Initialize = async (options?: IPFSFetcherOptions) => {
     // Only initialize in cases where isn't initialized yet
@@ -24,6 +26,7 @@ export const Initialize = async (options?: IPFSFetcherOptions) => {
         gatewayTimeout = options?.gatewayTimeout || 5000;
         gatewayCheckAmount = options?.gatewayCheckAmount || 3;
         reinitializeTime = options?.reinitializeTime || 1000 * 60 * 60;
+        initialOptions = options;
     }
 }
 
@@ -206,7 +209,7 @@ class PersistentFetcher {
         // If instance too old, reinitialize
         if (instance && (new Date().getTime() - instance.initializedTime.getTime()) > reinitializeTime) {
             if(verbose) console.log('Instance too old, reinitializing');
-            await Initialize({ forceInitialize: true, verbose });
+            await Initialize({ forceInitialize: true, ...initialOptions });
         }
 
         // In case of successful found a resource, return it.
