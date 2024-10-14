@@ -3,6 +3,7 @@ export type IPFSFetcherOptions = {
     verbose?: boolean;
     forceInitialize?: boolean;
     minimumGateways?: number;
+    gatewayCheckAmount?: number;
     gatewayTimeout?: number;
     reinitializeTime?: number;
 };

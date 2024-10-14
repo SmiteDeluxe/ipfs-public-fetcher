@@ -81,6 +81,8 @@ var verbose = false;
 var gatewayTimeout = 5000;
 // Reinitializing time
 var reinitializeTime = 1000 * 60 * 60;
+// Minimum gateways to be connected before consider IPFS as connected as well as slice size of fastest gateways used
+var gatewayCheckAmount = 3;
 var Initialize = function (options) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         // Only initialize in cases where isn't initialized yet
@@ -89,6 +91,7 @@ var Initialize = function (options) { return __awaiter(void 0, void 0, void 0, f
             instance = new IPFSFetcher(options);
             verbose = (options === null || options === void 0 ? void 0 : options.verbose) || false;
             gatewayTimeout = (options === null || options === void 0 ? void 0 : options.gatewayTimeout) || 5000;
+            gatewayCheckAmount = (options === null || options === void 0 ? void 0 : options.gatewayCheckAmount) || 3;
             reinitializeTime = (options === null || options === void 0 ? void 0 : options.reinitializeTime) || 1000 * 60 * 60;
         }
         return [2 /*return*/];
@@ -124,7 +127,7 @@ var IPFSFetcher = /** @class */ (function () {
     }
     IPFSFetcher.prototype.initialize = function (options) {
         return __awaiter(this, void 0, void 0, function () {
-            var domains, _a;
+            var domains, _a, _loop_1, _i, domains_2, gatewayPath;
             var _this = this;
             return __generator(this, function (_b) {
                 switch (_b.label) {
@@ -138,43 +141,63 @@ var IPFSFetcher = /** @class */ (function () {
                         _b.label = 3;
                     case 3:
                         domains = _a;
-                        domains.forEach(function (gatewayPath) {
-                            var dateBefore = Date.now();
-                            // Test each gateway against a 5sec timeout
-                            var timeout;
-                            Promise.any([
-                                fetch(gatewayPath + '/ipfs/' + 'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m', { mode: 'cors', method: 'HEAD' }),
-                                new Promise(function (_, reject) { timeout = setTimeout(reject, 5000); })
-                            ]).then(function (response) {
-                                if (response.ok) {
-                                    clearTimeout(timeout);
-                                    return;
+                        _loop_1 = function (gatewayPath) {
+                            var dateBefore, timeoutId, error_1;
+                            return __generator(this, function (_c) {
+                                switch (_c.label) {
+                                    case 0:
+                                        dateBefore = Date.now();
+                                        _c.label = 1;
+                                    case 1:
+                                        _c.trys.push([1, 3, , 4]);
+                                        // Race between fetch and timeout
+                                        return [4 /*yield*/, Promise.race([
+                                                fetch(gatewayPath + '/ipfs/' + 'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m', { mode: 'cors', method: 'HEAD' }),
+                                                new Promise(function (_, reject) { timeoutId = setTimeout(function () { return reject(new Error("Timeout")); }, 5000); })
+                                            ]).then(function (response) {
+                                                clearTimeout(timeoutId);
+                                                if (!response.ok) {
+                                                    throw new Error(response.statusText);
+                                                }
+                                                // Record successful gateway
+                                                _this.gatewaysFetched.push({ path: gatewayPath, response: Date.now() - dateBefore });
+                                                _this.gatewaysFetched.sort(function (a, b) { return a.response - b.response; }); // Sort by response time
+                                                if (verbose)
+                                                    console.log('Gateway connected: ', _this.gatewaysFetched.length, '-', gatewayPath);
+                                                // If more than minimum gateways succeed, mark as connected
+                                                if (_this.gatewaysFetched.length >= ((options === null || options === void 0 ? void 0 : options.minimumGateways) || 5) && !_this.ipfsConnected) {
+                                                    if (verbose)
+                                                        console.log('-- IPFS Connected to enough gateways --');
+                                                    _this.ipfsConnected = true;
+                                                }
+                                            })];
+                                    case 2:
+                                        // Race between fetch and timeout
+                                        _c.sent();
+                                        return [3 /*break*/, 4];
+                                    case 3:
+                                        error_1 = _c.sent();
+                                        clearTimeout(timeoutId);
+                                        if (verbose)
+                                            console.log('Failed to fetch gateway or Path based Gateway', gatewayPath, error_1 instanceof Error ? error_1.message : '');
+                                        return [3 /*break*/, 4];
+                                    case 4: return [2 /*return*/];
                                 }
-                                else {
-                                    clearTimeout(timeout);
-                                    throw Error(response.statusText);
-                                }
-                            })
-                                .then(function () {
-                                // Concat the new fetched gateway and make a faster response sort
-                                _this.gatewaysFetched = _this.gatewaysFetched.concat({ path: gatewayPath, response: Date.now() - dateBefore })
-                                    .sort(function (a, b) { return a.response - b.response; });
-                                if (verbose)
-                                    console.log('Gateway connected: ', _this.gatewaysFetched.length, '-', gatewayPath);
-                                // If more than minimum gateways have succeded, then consider IPFS connected and ready
-                                if (_this.gatewaysFetched.length > (options.minimumGateways || 0) && !_this.ipfsConnected) {
-                                    if (verbose)
-                                        console.log('-- IPFS Connected to enough gateways --');
-                                    _this.ipfsConnected = true;
-                                }
-                            })
-                                .catch(function (err) {
-                                clearTimeout(timeout);
-                                if (verbose)
-                                    console.log('Failed to fetch gateway or Path based Gateway', gatewayPath);
                             });
-                        });
-                        return [2 /*return*/];
+                        };
+                        _i = 0, domains_2 = domains;
+                        _b.label = 4;
+                    case 4:
+                        if (!(_i < domains_2.length)) return [3 /*break*/, 7];
+                        gatewayPath = domains_2[_i];
+                        return [5 /*yield**/, _loop_1(gatewayPath)];
+                    case 5:
+                        _b.sent();
+                        _b.label = 6;
+                    case 6:
+                        _i++;
+                        return [3 /*break*/, 4];
+                    case 7: return [2 /*return*/];
                 }
             });
         });
@@ -207,12 +230,11 @@ var PathResolver = /** @class */ (function () {
                                 console.log('Error fetching content from', _this.gatewayPath, r.statusText);
                             throw new Error('Error fetching content');
                         })
-                            .catch(function (err) {
+                            .catch(function (_err) {
                             // if (err.name === 'AbortError') {
                             //     // console.log('Aborted request', this.gatewayPath)
                             // } else if (this.gateway && err.code && err.code != 20) {
                             //     this.gateway.errors++
-                            // }
                             reject();
                         });
                     })];
@@ -248,10 +270,10 @@ var PersistentFetcher = /** @class */ (function () {
                         if (!(!this.found && this.tries < this.maxFetchTries)) return [3 /*break*/, 3];
                         if (verbose)
                             console.log("Trying to fetch content, on try", this.tries);
-                        fetchPromises = instance.gatewaysFetched.slice(0, 4).map(function (gateway) {
+                        fetchPromises = instance.gatewaysFetched.slice(0, gatewayCheckAmount).map(function (gateway) {
                             var resolver = new PathResolver(_this.digested, gateway);
                             _this.resolvers.push(resolver);
-                            return resolver.fetch().catch(function (err) { return null; }); // Catch errors to prevent Promise rejection
+                            return resolver.fetch().catch(function (err) { return new Promise(function () { }); }); // Catch errors to prevent Promise rejection
                         });
                         timeoutPromise = new Promise(function (resolve) {
                             setTimeout(function () { return resolve(null); }, gatewayTimeout);
@@ -263,7 +285,7 @@ var PersistentFetcher = /** @class */ (function () {
                         this.resolvers.forEach(function (r) { return r.kill(); });
                         this.resolvers = [];
                         // Process results
-                        if (results) {
+                        if (typeof results === 'string') {
                             if (verbose)
                                 console.log('Found content at', results);
                             this.found = results; // This will be the fastest response

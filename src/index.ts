@@ -12,6 +12,8 @@ let verbose = false
 let gatewayTimeout = 5000
 // Reinitializing time
 let reinitializeTime = 1000 * 60 * 60
+// Minimum gateways to be connected before consider IPFS as connected as well as slice size of fastest gateways used
+let gatewayCheckAmount = 3
 
 export const Initialize = async (options?: IPFSFetcherOptions) => {
     // Only initialize in cases where isn't initialized yet
@@ -20,6 +22,7 @@ export const Initialize = async (options?: IPFSFetcherOptions) => {
         instance = new IPFSFetcher(options);
         verbose = options?.verbose || false;
         gatewayTimeout = options?.gatewayTimeout || 5000;
+        gatewayCheckAmount = options?.gatewayCheckAmount || 3;
         reinitializeTime = options?.reinitializeTime || 1000 * 60 * 60;
     }
 }
@@ -59,40 +62,42 @@ class IPFSFetcher {
 
     private async initialize(options?: IPFSFetcherOptions) {
         const domains = options?.customDomains ? options.customDomains : await fetchGateways();
-
-        domains.forEach(gatewayPath => {
-            const dateBefore = Date.now()
-            // Test each gateway against a 5sec timeout
-            let timeout;
-            Promise.any([
-                fetch(gatewayPath + '/ipfs/' + 'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m', { mode: 'cors', method: 'HEAD' }),
-                new Promise((_, reject) => { timeout = setTimeout(reject, 5000) })
-            ]).then((response: Response) => {
-                if (response.ok) {
-                    clearTimeout(timeout)
-                    return;
-                } else {
-                    clearTimeout(timeout)
-                    throw Error(response.statusText);
-                }
-            })
-                .then(() => {
-                    // Concat the new fetched gateway and make a faster response sort
-                    this.gatewaysFetched = this.gatewaysFetched.concat({ path: gatewayPath, response: Date.now() - dateBefore })
-                        .sort((a, b) => a.response - b.response)
-                    if (verbose) console.log('Gateway connected: ', this.gatewaysFetched.length, '-', gatewayPath,)
-                    // If more than minimum gateways have succeded, then consider IPFS connected and ready
-                    if (this.gatewaysFetched.length > (options.minimumGateways || 0) && !this.ipfsConnected) {
-                        if (verbose) console.log('-- IPFS Connected to enough gateways --')
-                        this.ipfsConnected = true
+    
+        for (const gatewayPath of domains) {
+            const dateBefore = Date.now();
+            let timeoutId;
+    
+            try {
+                // Race between fetch and timeout
+                await Promise.race([
+                    fetch(gatewayPath + '/ipfs/' + 'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m', { mode: 'cors', method: 'HEAD' }),
+                    new Promise((_, reject) => { timeoutId = setTimeout(() => reject(new Error("Timeout")), 5000) })
+                ]).then((response: Response) => {
+                    clearTimeout(timeoutId);
+    
+                    if (!response.ok) {
+                        throw new Error(response.statusText);
                     }
-                })
-                .catch((err) => {
-                    clearTimeout(timeout)
-                    if (verbose) console.log('Failed to fetch gateway or Path based Gateway', gatewayPath)
-                })
-        })
+    
+                    // Record successful gateway
+                    this.gatewaysFetched.push({ path: gatewayPath, response: Date.now() - dateBefore });
+                    this.gatewaysFetched.sort((a, b) => a.response - b.response);  // Sort by response time
+    
+                    if (verbose) console.log('Gateway connected: ', this.gatewaysFetched.length, '-', gatewayPath);
+    
+                    // If more than minimum gateways succeed, mark as connected
+                    if (this.gatewaysFetched.length >= (options?.minimumGateways || 5) && !this.ipfsConnected) {
+                        if (verbose) console.log('-- IPFS Connected to enough gateways --');
+                        this.ipfsConnected = true;
+                    }
+                });
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (verbose) console.log('Failed to fetch gateway or Path based Gateway', gatewayPath, error instanceof Error ? error.message : '');
+            }
+        }
     }
+    
 }
 
 // Try to fetch a content to via gateway path
@@ -123,12 +128,12 @@ class PathResolver {
                     if (verbose) console.log('Error fetching content from', this.gatewayPath, r.statusText)
                     throw new Error('Error fetching content')
                 })
-                .catch((err: any) => {
+                .catch((_err: any) => {
                     // if (err.name === 'AbortError') {
                     //     // console.log('Aborted request', this.gatewayPath)
                     // } else if (this.gateway && err.code && err.code != 20) {
                     //     this.gateway.errors++
-                    // }
+
                     reject()
                 })
         })
@@ -171,10 +176,10 @@ class PersistentFetcher {
             if (verbose) console.log(`Trying to fetch content, on try`, this.tries);
     
             // Start all fetch promises immediately
-            const fetchPromises = instance.gatewaysFetched.slice(0, 4).map((gateway) => {
+            const fetchPromises = instance.gatewaysFetched.slice(0, gatewayCheckAmount).map((gateway) => {
                 const resolver = new PathResolver(this.digested, gateway);
                 this.resolvers.push(resolver);
-                return resolver.fetch().catch(err => null); // Catch errors to prevent Promise rejection
+                return resolver.fetch().catch(err => new Promise(() => {})); // Catch errors to prevent Promise rejection
             });
     
             // Create timeout promise
@@ -190,7 +195,7 @@ class PersistentFetcher {
             this.resolvers = [];
     
             // Process results
-            if (results) {
+            if (typeof results === 'string') {
                 if (verbose) console.log('Found content at', results);
                 this.found = results; // This will be the fastest response
             } else {
