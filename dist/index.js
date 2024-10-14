@@ -70,7 +70,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 exports.FetchJSON = exports.FetchContent = exports.IsConnected = exports.Initialize = void 0;
 var domains_1 = __importDefault(require("./domains"));
 var Utilities = __importStar(require("./utilities"));
@@ -132,7 +132,7 @@ var IPFSFetcher = /** @class */ (function () {
                         if (!(options === null || options === void 0 ? void 0 : options.customDomains)) return [3 /*break*/, 1];
                         _a = options.customDomains;
                         return [3 /*break*/, 3];
-                    case 1: return [4 /*yield*/, (0, domains_1["default"])()];
+                    case 1: return [4 /*yield*/, (0, domains_1.default)()];
                     case 2:
                         _a = _b.sent();
                         _b.label = 3;
@@ -167,7 +167,8 @@ var IPFSFetcher = /** @class */ (function () {
                                         console.log('-- IPFS Connected to enough gateways --');
                                     _this.ipfsConnected = true;
                                 }
-                            })["catch"](function (err) {
+                            })
+                                .catch(function (err) {
                                 clearTimeout(timeout);
                                 if (verbose)
                                     console.log('Failed to fetch gateway or Path based Gateway', gatewayPath);
@@ -185,13 +186,15 @@ var PathResolver = /** @class */ (function () {
     function PathResolver(digested, gateway) {
         this.controller = new AbortController();
         this.signal = this.controller.signal;
-        this.gatewayPath = gateway ? gateway.path + '/ipfs/' + digested : digested;
+        this.gatewayPath = gateway.path + '/ipfs/' + digested;
     }
     PathResolver.prototype.fetch = function () {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
+                        if (verbose)
+                            console.log('Fetching content from', _this.gatewayPath);
                         // Fetch digested path from best gateways
                         fetch(_this.gatewayPath, { method: 'HEAD', signal: _this.signal })
                             .then(function (r) {
@@ -200,8 +203,11 @@ var PathResolver = /** @class */ (function () {
                                 resolve(_this.gatewayPath);
                                 return;
                             }
+                            if (verbose)
+                                console.log('Error fetching content from', _this.gatewayPath, r.statusText);
                             throw new Error('Error fetching content');
-                        })["catch"](function (err) {
+                        })
+                            .catch(function (err) {
                             // if (err.name === 'AbortError') {
                             //     // console.log('Aborted request', this.gatewayPath)
                             // } else if (this.gateway && err.code && err.code != 20) {
@@ -241,11 +247,11 @@ var PersistentFetcher = /** @class */ (function () {
                     case 1:
                         if (!(!this.found && this.tries < this.maxFetchTries)) return [3 /*break*/, 3];
                         if (verbose)
-                            console.log('Trying to fetch content, on try', this.tries);
+                            console.log("Trying to fetch content, on try", this.tries);
                         fetchPromises = instance.gatewaysFetched.slice(0, 4).map(function (gateway) {
                             var resolver = new PathResolver(_this.digested, gateway);
                             _this.resolvers.push(resolver);
-                            return resolver.fetch()["catch"](function (err) { return null; }); // Catch errors to prevent Promise rejection
+                            return resolver.fetch().catch(function (err) { return null; }); // Catch errors to prevent Promise rejection
                         });
                         timeoutPromise = new Promise(function (resolve) {
                             setTimeout(function () { return resolve(null); }, gatewayTimeout);
@@ -258,6 +264,8 @@ var PersistentFetcher = /** @class */ (function () {
                         this.resolvers = [];
                         // Process results
                         if (results) {
+                            if (verbose)
+                                console.log('Found content at', results);
                             this.found = results; // This will be the fastest response
                         }
                         else {
@@ -323,7 +331,8 @@ var FetchJSON = function (path, maxFetchTries) {
                     return [2 /*return*/, new Promise(function (resolve, reject) {
                             fetch(newPath)
                                 .then(function (r) { return r.json(); })
-                                .then(function (doc) { return resolve(doc); })["catch"](function (err) {
+                                .then(function (doc) { return resolve(doc); })
+                                .catch(function (err) {
                                 if (err instanceof Error && err.message.toLowerCase().includes('unexpected')) {
                                     reject('Failed to parse JSON. The content fetched is not a valid JSON document.');
                                 }

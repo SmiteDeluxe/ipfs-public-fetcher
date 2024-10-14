@@ -35,7 +35,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 var fallbackGateways = [
     'https://flk-ipfs.xyz',
     'https://ipfs.cyou',
@@ -51,7 +51,7 @@ var fallbackGateways = [
     'https://4everland.io',
     'https://w3s.link',
 ];
-exports["default"] = (function () { return __awaiter(void 0, void 0, void 0, function () {
+exports.default = (function () { return __awaiter(void 0, void 0, void 0, function () {
     var response, gateways, error_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
