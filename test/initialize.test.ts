@@ -10,9 +10,9 @@ describe('Testing Initialize using two mock domains', () => {
 
   beforeAll((done) => {
     server1.listen(3000, () => {
-      app1 = `http://localhost:${server1.address().port}/`;
+      app1 = `http://localhost:${server1.address().port}`;
       server2.listen(3001, () => {
-        app2 = `http://localhost:${server2.address().port}/`;
+        app2 = `http://localhost:${server2.address().port}`;
         done();
       });
     });
@@ -28,14 +28,14 @@ describe('Testing Initialize using two mock domains', () => {
 
   test('Should return "Hello from IPFS Gateway Checker" on server 1"', async () => {
     // const before = performance.now()
-    const res = await fetch(`${app1}bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m`);
+    const res = await fetch(`${app1}/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m`);
     // expect(performance.now()-before).toBeGreaterThan(500)
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('Hello from IPFS Gateway Checker');
   });
 
   test('Should return "Hello from IPFS Gateway Checker" on server 2"', async () => {
-    const res = await fetch(`${app2}bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m`);
+    const res = await fetch(`${app2}/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m`);
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('Hello from IPFS Gateway Checker');
   });
@@ -44,12 +44,13 @@ describe('Testing Initialize using two mock domains', () => {
     await Initialize(
       {
         customDomains: [
-          `${app1}:hash`,
-          `${app2}:hash`
+          `${app1}`,
+          `${app2}`
         ],
         verbose: true,
+        minimumGateways: 2,
       })
-    await new Promise((resolve) => setTimeout(resolve, 10))
+    await new Promise((resolve) => setTimeout(resolve, 100))
     expect(IsConnected()).toBe(true);
   });
 
@@ -58,7 +59,7 @@ describe('Testing Initialize using two mock domains', () => {
     const before = performance.now()
     const content = await FetchContent('bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m/delay500.png')
     expect(performance.now() - before).toBeGreaterThan(500)
-    expect(content).toBe(`${app2}bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m/delay500.png`)
+    expect(content).toBe(`${app2}/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m/delay500.png`)
   });
 
   test('Will search for content not returning in time.', async () => {
